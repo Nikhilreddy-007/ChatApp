@@ -1,6 +1,7 @@
 import { createContext,useState,useEffect, useContext } from "react";
 import { account } from "../appwriteConfig";
 import { useNavigate } from "react-router-dom";
+import { ID } from "appwrite";
 const AuthContext=createContext()
 
 export const AuthProvider = ({children}) => {
@@ -44,10 +45,42 @@ export const AuthProvider = ({children}) => {
         account.deleteSession('current')
         setUser(null)
       }
+
+      const handleUserRegister = async (e,email,pass1,pass2,name) =>{
+        e.preventDefault()
+
+        if(pass1!==pass2){
+          alert("Passwords don't match!!")
+          return
+        }
+
+        try{
+               const respone= await account.create(
+                ID.unique(),
+                email,
+                pass1,
+                name
+               )
+              await account.createEmailPasswordSession(email, pass1);
+               const accountDetails=account.get();
+               setUser(accountDetails)
+               navigate('/')
+               
+               console.log("Registered !! ",respone)
+        }
+        catch(error){
+          console.error(error)
+        }
+
+
+
+      }
+
       const userdata={
             user ,
             handleUserLogin,
-            handleUserLogout
+            handleUserLogout,
+            handleUserRegister
       }
       return <AuthContext.Provider value={userdata}>
             {loading ? <p>Loading ...</p> : children}

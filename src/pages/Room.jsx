@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { ID,Query } from "appwrite";
-import {Trash2} from 'react-feather';
+import { ID,Query,Role ,Permission } from "appwrite";
+import {MessageSquare, Trash2} from 'react-feather';
 import Header from "../components/Header";
+
 import client,{
   databases,
   DATABASE_ID,
   COLLECTION_ID_MESSAGES,
 } from "../appwriteConfig";
+import { useAuth } from "../utils/AuthContext";
 const Room = () => {
   const [messages, setMessages] = useState([]);
   const [messageBody,setMessageBody]=useState('');
+  const {user}=useAuth()
   useEffect(() => {
     getMessages();
   const unsubscribe=client.subscribe(`databases.${DATABASE_ID}.collections.${COLLECTION_ID_MESSAGES}.documents`, response => {
@@ -31,16 +34,21 @@ const Room = () => {
   }, []);
 
   let payload={
+    user_id:user.$id,
+    user_name:user.name,
     body:messageBody
   }
-
+let permissions=[
+     Permission.write(Role.user(user.$id))
+]
   const handleSubmit= async (e) =>{
        e.preventDefault();
        let response = await databases.createDocument(
         DATABASE_ID,
         COLLECTION_ID_MESSAGES,
         ID.unique(),
-        payload
+        payload,
+        permissions
        )
        console.log("Response ",response)
        //setMessages((prevState) => [response,...messages])
@@ -65,7 +73,7 @@ const Room = () => {
         DATABASE_ID, // databaseId
         COLLECTION_ID_MESSAGES,
         message_id)
-       // setMessages(prevState => messages.filter((message) => message.$id!==message_id))
+        setMessages(prevState => prevState.filter((message) => message.$id!==message_id))
     }
 
   return (
@@ -91,9 +99,19 @@ const Room = () => {
           {messages.map((message) => (
             <div key={message.id} className="message--wrapper">
               <div className="message--header">
-                <small className="message-timestamp">{new Date(message.$createdAt).toLocaleString()}</small>
-                <Trash2 onClick={()=>{deleteMessage(message.$id)}}
-                    className="delete--btn"/>
+                <p>{
+                  message.user_name? (<span>{message.user_name}</span>) :
+                  (
+                    <span>Anonymous User</span>
+                  )
+                }
+                  <small className="message-timestamp">{new Date(message.$createdAt).toLocaleString()}</small>
+                  </p>
+                  {message.$permissions.includes(`delete(\"user:${user.$id}\")`) && (
+                            <Trash2 className="delete--btn" onClick={() => {deleteMessage(message.$id)}}/>
+                            
+                        )}
+                
               </div>
               <div className="message--body">
                 <span>{message.body}</span>
